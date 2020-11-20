@@ -1,14 +1,93 @@
-from flask import Flask
+from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask_bootstrap import Bootstrap
+from flask_sqlalchemy import SQLAlchemy
 
-app = Flask(__name__)  # __name__代表目前執行的模組
+app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/test.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.secret_key = "weryasdgzxcb057"
+Bootstrap(app)
+
+db = SQLAlchemy(app)
 
 
-@app.route('/')  # 函示的裝飾(Decorator):以函示為基礎，提供附加的功能
-def home():
-    return 'Hello Flask'
+class users(db.Model):
+    _id = db.Column("id", db.Integer, primary_key=True)
+    name = db.Column("name", db.String(100))
+    email = db.Column("email", db.String(100))
 
-@app.route('/test')#代表我們要處理的網站路徑
-def test():
-    return 'This is Test'
-if __name__ == "__main__":
-    app.run() #立刻啟動伺服器
+    def __init__(self, name, email):
+        self.name = name
+        self.email = email
+
+
+@app.route("/")
+@app.route("/index")
+def index():
+    title = 'Flask App'
+
+    return render_template("index.html")
+
+@app.route("/view")
+def view():
+    return render_template("view.html", values=users.query.all())
+
+
+@app.route("/login", methods=["POST", "GET"])
+def login():
+    if request.method == "POST":
+        user = request.form['nm']
+        session["user"] = user
+
+        found_user = users.query.filter_by(name = user).first()
+        if found_user:
+            session["email"] = found_user.email
+        else:
+            usr = users(user, "")
+            db.session.add(usr)
+            db.session.commit()
+
+        flash("Login Succesful")
+        return redirect(url_for("user"))
+    else:
+        if "user" in session:
+            flash("Already Logged In!")
+            return redirect(url_for("user"))
+        return render_template('login.html')
+
+
+@app.route("/user", methods=["POST", "GET"])
+def user():
+    email = None
+    if "user" in session:
+        user = session["user"]
+
+        if request.method == "POST":
+            email = request.form["email"]
+            session["email"] = email
+            found_user = users.query.filter_by(name=user).first()
+            found_user.email =email
+            db.session.commit()
+            flash("email was saved")
+        else:
+            if "email" in session:
+                email = session["email"]
+        return render_template("user.html", email=email)
+    else:
+        flash("You Are Not Logged In!")
+        return redirect(url_for("login"))
+
+
+@app.route("/logout")
+def logout():
+    if "user" in session:
+        user = session["user"]
+        flash(f"You have been logged out, {user}", "info")
+    session.pop('user', None)
+    session.pop("email", None)
+    return redirect(url_for("login"))
+
+
+if __name__ == '__main__':
+    db.create_all()
+    app.run(debug=True)

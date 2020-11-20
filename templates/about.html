@@ -1,0 +1,14 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<DIV style="text-align:center;color:red "><h1>About Page</h1></DIV>
+{% endblock content %}
+
+{% block about %}
+    {% for post in posts %}
+    <h1>{{ post.title }}</h1>
+    <p>By {{ post.author }}</p>
+    <p> {{ post.content }} </p>
+    {% endfor %}
+{% endblock about %}
+</head>
